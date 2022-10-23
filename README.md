@@ -1,4 +1,4 @@
-# vm6502
+# vm6502 ![](https://github.com/GRAYgoose124/vm6502/actions/workflows/tests.yml/badge.svg)
 As the name suggests, this crate is the core 6502 virtual machine. Currently, if you'd like 
 more information, please generate and check the docs with `cargo docs --open` and direct yourself 
 to the vm6502 crate.
