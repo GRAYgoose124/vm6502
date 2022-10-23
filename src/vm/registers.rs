@@ -23,15 +23,15 @@ pub struct Registers {
     /// Stack register
     pub sr: u8,
     /// Flag register
-    /// - `SR`  Flags (bit 7 to bit 0)
-    /// - `N`	Negative
-    /// - `V`	Overflow
-    /// - `-`	ignored
-    /// - `B`	Break
-    /// - `D`	Decimal (use BCD for arithmetics)
-    /// - `I`	Interrupt (IRQ disable)
-    /// - `Z`	Zero
-    /// - `C`	Carry
+    /// - `SR`   Flags (bit 7 to bit 0)
+    /// - `N`    Negative
+    /// - `V`    Overflow
+    /// - `-`    ignored
+    /// - `B`    Break
+    /// - `D`    Decimal (use BCD for arithmetics)
+    /// - `I`    Interrupt (IRQ disable)
+    /// - `Z`    Zero
+    /// - `C`    Carry
     pub sp: u8,
 }
 
@@ -45,6 +45,13 @@ impl Registers {
             sr: 0x00,
             sp: 0x00,
         }
+    }
+}
+
+// TODO: Replace new uses and then just derivative default alone.
+impl Default for Registers {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -91,20 +91,7 @@ impl From<u8> for Status {
     }
 }
 
-impl Into<u8> for Status {
-    fn into(self) -> u8 {
-        match self {
-            Status::Negative => 0,
-            Status::Overflow => 1,
-            Status::Unused => 2,
-            Status::Break => 4,
-            Status::Decimal => 8,
-            Status::Interrupt => 16,
-            Status::Zero => 32,
-            Status::Carry => 64,
-        }
-    }
-}
+
 
 impl Debug for Status {
     fn fmt(&self, f: &mut Formatter) -> Result {

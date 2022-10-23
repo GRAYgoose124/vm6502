@@ -378,12 +378,11 @@ pub mod machine_arrays {
     ];
 
     pub fn valid_op(op: u8) -> bool {
-        for i in 0..N_VALID_OPS {
-            if VALID_OPCODES[i] == op {
-                return true;
-            }
+        for vop in VALID_OPCODES.iter().take(N_VALID_OPS) {
+            if *vop == op { return true; }
         }
-        return false;
+
+        false
     }
 
     use crate::prelude::Mode;

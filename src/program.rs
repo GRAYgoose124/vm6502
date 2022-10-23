@@ -78,7 +78,7 @@ impl ProgramController for VirtualMachine {
     fn execute(&mut self) -> u64 {
         let old_cycles = self.cycles;
 
-        while self.halted == false {
+        while !self.halted {
             self.step();
         }
 
@@ -91,7 +91,7 @@ impl ProgramController for VirtualMachine {
         let old_cycles = self.cycles;
 
         let start = Instant::now();
-        while start.elapsed() < duration && self.halted == false {
+        while start.elapsed() < duration && !self.halted {
             self.step();
 
             if self.registers.pc == self.irq_bounds.0 as u16 {

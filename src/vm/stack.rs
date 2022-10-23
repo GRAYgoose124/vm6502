@@ -19,23 +19,20 @@ impl StackInterface for VirtualMachine {
             println!("Popped value: {}. SP: {}", value, self.registers.sp);
         }
 
-        if self.registers.sp > u8::MIN {
-            self.registers.sp -= 1;
-        } // TODO panic on underflow.
+        // Move to next stack entry, TODO: Check the wraps.
+        self.registers.sp = self.registers.sp.saturating_sub(1);
+
         value
     }
 
     // Debug / Not Spec
     fn peek(&mut self) -> u8 {
-        let value = self.flatmap[self.stack_bounds.1 - self.registers.sp as usize];
-        value
+        self.flatmap[self.stack_bounds.1 - self.registers.sp as usize]
     }
 
     fn push(&mut self, value: u8) {
         self.flatmap[self.stack_bounds.1 - (self.registers.sp as usize)] = value;
 
-        if self.registers.sp < u8::MAX {
-            self.registers.sp += 1;
-        } // TODO panic on overflow.
+        self.registers.sp = self.registers.sp.saturating_add(1);
     }
 }

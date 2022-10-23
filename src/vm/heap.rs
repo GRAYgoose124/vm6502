@@ -32,18 +32,18 @@ impl HeapInterface for VirtualMachine {
         let addr = virt_addr as usize + self.heap_bounds.0;
 
         #[cfg(feature = "check_heap_bounds")]
-        self.bounds_check(addr as usize);
+        self.bounds_check(addr);
 
-        self.flatmap[addr as usize]
+        self.flatmap[addr]
     }
 
     fn set_heap(&mut self, virt_addr: u16, byte: u8) {
         let addr = virt_addr as usize + self.heap_bounds.0;
 
         #[cfg(feature = "check_heap_bounds")]
-        self.bounds_check(addr as usize);
+        self.bounds_check(addr);
 
-        self.flatmap[addr as usize] = byte;
+        self.flatmap[addr] = byte;
     }
 
     /// Returns the page offset for the current PC.

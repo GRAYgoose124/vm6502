@@ -122,7 +122,7 @@ impl InstructionController for VirtualMachine {
             r
         };
 
-        let result = match self.addr_mode {
+        match self.addr_mode {
             Mode::Accumulator => doit(&mut self.registers.ac),
             Mode::ZeroPage => doit(&mut self.flatmap[address as usize]),
             Mode::ZeroPageX => {
@@ -148,9 +148,7 @@ impl InstructionController for VirtualMachine {
             Mode::ZeroPageY => {
                 doit(&mut self.flatmap[address as usize + self.registers.y as usize])
             }
-        };
-
-        result
+        }
     }
 
     /// Fetch the next byte from the program counter.
@@ -174,7 +172,7 @@ impl InstructionController for VirtualMachine {
                 self.registers.pc += 1;
                 let hh = self.get_heap(0) as usize;
 
-                let offset = (hh << 2) | ll + self.registers.x as usize;
+                let offset = (hh << 2) | (ll + self.registers.x as usize);
                 self.get_heap(offset as u16)
             }
             // OPC $LLHH,Y
@@ -184,7 +182,7 @@ impl InstructionController for VirtualMachine {
                 self.registers.pc += 1;
                 let hh = self.get_heap(0) as usize;
 
-                let offset = (hh << 2) | ll + self.registers.y as usize;
+                let offset = (hh << 2) | (ll + self.registers.y as usize);
                 self.get_heap(offset as u16)
             }
             _ => self.fetch_byte(),
@@ -243,7 +241,7 @@ impl InstructionController for VirtualMachine {
                 let ell = self.get_heap(ll as u16);
                 let ehh = self.get_heap(ll as u16);
 
-                let offset = (ehh << 2) | ell + self.registers.y;
+                let offset = (ehh << 2) | (ell + self.registers.y);
                 self.get_heap(offset as u16)
             }
             // OPC $BB
@@ -306,6 +304,7 @@ impl InstructionController for VirtualMachine {
     }
 
     /// Check the opcode and return the addressing mode.
+    #[allow(clippy::bad_bit_mask)]
     #[bitmatch]
     fn mode(&mut self, op: u8) -> Mode {
         #[bitmatch]
