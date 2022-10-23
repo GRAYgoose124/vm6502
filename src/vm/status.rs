@@ -91,8 +91,6 @@ impl From<u8> for Status {
     }
 }
 
-
-
 impl Debug for Status {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {

@@ -379,7 +379,9 @@ pub mod machine_arrays {
 
     pub fn valid_op(op: u8) -> bool {
         for vop in VALID_OPCODES.iter().take(N_VALID_OPS) {
-            if *vop == op { return true; }
+            if *vop == op {
+                return true;
+            }
         }
 
         false

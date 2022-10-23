@@ -113,7 +113,7 @@ impl Debug for VirtualMachine {
         let page_bounds = (current_page as usize, (current_page + 0xFF) as usize);
 
         let pc_offset = self.heap_bounds.0 + self.registers.pc as usize;
-  
+
         let pc_byte = format!("\n\t\tByte at PC: 0x{:02X}", &self.flatmap[pc_offset]);
         write!(
             f,
