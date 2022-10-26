@@ -37,7 +37,6 @@ impl HeapInterface for VirtualMachine {
         #[cfg(feature = "check_heap_bounds")]
         self.bounds_check(addr);
 
- 
         self.flatmap[addr]
     }
 

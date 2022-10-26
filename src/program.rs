@@ -81,13 +81,13 @@ impl ProgramController for VirtualMachine {
         let prog = std::fs::read(path).unwrap();
 
         let len = prog.len();
-        
+
         // 0x200 + 0x012 is accounting for zp, stack and interrupt vectors.
         if (offset as usize + len) > self.heap_bounds.1 - 0x212 {
             panic!("Program is too large to fit in heap.");
         } else if len % 2 != 0 {
             panic!("Program is not byte aligned.");
-        } 
+        }
 
         for (i, byte) in prog.iter().enumerate() {
             self.flatmap[offset as usize + i] = *byte;

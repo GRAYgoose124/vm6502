@@ -396,7 +396,10 @@ impl InstructionController for VirtualMachine {
         let m = self.mode(op);
 
         #[cfg(feature = "show_vm_step")]
-        println!("step: 0x{:04X}: OP=0x{:02X}, {:?}", self.registers.pc, op, m);
+        println!(
+            "step: 0x{:04X}: OP=0x{:02X}, {:?}",
+            self.registers.pc, op, m
+        );
 
         // Update internal state
         self.addr_mode = m;

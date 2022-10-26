@@ -58,12 +58,17 @@ fn asl_cover() {
 
 #[ignore]
 #[test]
-fn check_cycles_used(){
+fn check_cycles_used() {
     let mut vm = VirtualMachine::new();
 
     let last_cycles: u64 = 0;
     for (i, valid_op) in VALID_OPCODES.iter().enumerate() {
-        eprintln!("i: {}, op: 0x{:02X}, {:?}", i, valid_op, opcode_name!(*valid_op));
+        eprintln!(
+            "i: {}, op: 0x{:02X}, {:?}",
+            i,
+            valid_op,
+            opcode_name!(*valid_op)
+        );
         vm.registers.pc = 0x0000;
         vm.flatmap[vm.heap_bounds.0] = *valid_op;
 
@@ -71,5 +76,4 @@ fn check_cycles_used(){
 
         assert_eq!((vm.cycles - last_cycles) as u8, VALID_CYCLE_COUNTS[i]);
     }
-
 }

@@ -15,7 +15,7 @@ fn test_insert_bytes() {
     assert_eq!(vm.flatmap[vm.heap_bounds.0 + 0x0F02], 0x69);
     assert_eq!(vm.flatmap[vm.heap_bounds.0 + 0x0F03], 0x02);
     assert_eq!(vm.flatmap[vm.heap_bounds.0 + 0x0F04], 0x69);
-    assert_eq!(vm.flatmap[vm.heap_bounds.0 + 0x0F05], 0x03);  
+    assert_eq!(vm.flatmap[vm.heap_bounds.0 + 0x0F05], 0x03);
 }
 
 #[test]
