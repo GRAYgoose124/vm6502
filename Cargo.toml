@@ -1,6 +1,6 @@
 [package]
 name = "vm6502"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A 6502 virtual machine backend."
 license = "GPL-3.0-or-later"
