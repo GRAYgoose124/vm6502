@@ -38,7 +38,7 @@ pub mod vm;
 pub mod prelude {
     /// Virtual machine implementation prelude
     pub use crate::vm::prelude::*;
-
+    
     // Virtual machine utilities and macros.
     pub use crate::program::prelude::*;
 

@@ -46,6 +46,7 @@ show_fetched = []
 show_vm_instr_tick_match = []
 
 # For enabling more strict constraints to passthrough the virtual machine's errors to the rust compiler.
+# TODO: Rename to virtual bounds panic.
 vm_errors = ["passthrough_failure"]
 passthrough_failure = []
 

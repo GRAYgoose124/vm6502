@@ -1,26 +1,24 @@
 use vm6502::prelude::*;
 
-#[ignore]
 #[test]
 fn bcc_simple() {
     let mut vm = VirtualMachine::new();
     let prog = "90F0";
-    vm.set_program(vm.heap_bounds.0 as u16, prog);
+    vm.set_program(0x0000, prog);
     vm.set_status(Status::Carry, false);
 
     vm.step();
 
-    assert_eq!(vm.registers.pc, vm.heap_bounds.0 as u16 + 2);
+    assert_eq!(vm.registers.pc, 0xF0);
 }
 
-#[ignore]
 #[test]
 fn bcc_no_page_cross() {
     let mut vm = VirtualMachine::new();
 
     let offset = 0x03;
-    let prog = format!("900{}", offset);
-    let mut slide = vm.heap_bounds.0;
+    let prog = format!("90{:02X}", offset);
+    let mut slide = vm.vheap_bounds.0;
 
     vm.registers.pc = slide as u16;
     for _ in 0..0x55 {

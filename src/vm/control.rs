@@ -64,55 +64,57 @@ pub trait InstructionController {
     fn relative_jump(&mut self, offset: u8, cond: bool);
 }
 
-/// Virtual machine core control functionality.
-///
-/// This provides three main internal functions, `step`, `mode`, and `fetch`.
-///
-/// # Examples
-/// ## `step`
-/// ```
-/// use vm6502::prelude::*;
-/// let mut vm = VirtualMachine::new();
-///
-/// vm.insert_program(0x00, "69FFFF");
-/// vm.registers.pc = 0x00;
-///
-/// vm.step();
-///
-/// assert_eq!(vm.flatmap[vm.registers.pc as usize + vm.heap_bounds.0], 0xFF);
-/// ```
-/// ## `mode`
-/// ```
-/// use vm6502::prelude::*;
-///
-/// let mut vm = VirtualMachine::new();
-/// let mode = vm.mode(0x69);
-///
-/// assert_eq!(mode, Mode::Immediate);
-/// ```
-/// ## `fetch`
-/// // TODO: Unignore this later.
-/// ```rust,ignore
-/// use vm6502::prelude::*;
-///
-/// let mut vm = VirtualMachine::new();
-/// let byte = 0x01;
-///
-/// // 0x200 is heap start. See `VirtualMachine::heap_bounds`.
-/// vm.set_heap(0x0000, 0x69);
-/// vm.set_heap(0x0001, byte);
-///
-/// assert_ne!(vm.flatmap[0x0001], byte, "Byte {} was not set to 0x0201", byte);
-/// assert_eq!(byte, vm.flatmap[0x0201], "Byte {} was not set at 0x0201", byte);
-///
-/// // Should PC be 0x01 or two here?
-/// vm.registers.pc = 0x01;
-/// vm.addr_mode = Mode::Immediate;
-/// let fetched = vm.fetch();
-/// assert_eq!(vm.registers.pc, 0x02, "PC should be incremented by 1 after fetch");
-///
-/// assert_eq!(fetched, byte, "Fetched byte {} does not match expected byte {}", fetched, byte);
-/// ```
+/**
+Virtual machine core control functionality.
+
+This provides three main internal functions, `step`, `mode`, and `fetch`.
+
+# Examples
+## `step`
+```
+use vm6502::prelude::*;
+let mut vm = VirtualMachine::new();
+
+vm.insert_program(0x00, "69FFFF");
+vm.registers.pc = 0x00;
+
+vm.step();
+
+assert_eq!(vm.flatmap[vm.registers.pc as usize + vm.heap_bounds.0], 0xFF);
+```
+## `mode`
+```
+use vm6502::prelude::*;
+
+let mut vm = VirtualMachine::new();
+let mode = vm.mode(0x69);
+
+assert_eq!(mode, Mode::Immediate);
+```
+## `fetch`
+// TODO: Unignore this later.
+```rust,ignore
+use vm6502::prelude::*;
+
+let mut vm = VirtualMachine::new();
+let byte = 0x01;
+
+// 0x200 is heap start. See `VirtualMachine::heap_bounds`.
+vm.set_heap(0x0000, 0x69);
+vm.set_heap(0x0001, byte);
+
+assert_ne!(vm.flatmap[0x0001], byte, "Byte {} was not set to 0x0201", byte);
+assert_eq!(byte, vm.flatmap[0x0201], "Byte {} was not set at 0x0201", byte);
+
+// Should PC be 0x01 or two here?
+vm.registers.pc = 0x01;
+vm.addr_mode = Mode::Immediate;
+let fetched = vm.fetch();
+assert_eq!(vm.registers.pc, 0x02, "PC should be incremented by 1 after fetch");
+
+assert_eq!(fetched, byte, "Fetched byte {} does not match expected byte {}", fetched, byte);
+```
+*/
 impl InstructionController for VirtualMachine {
     // This can probably be combined with fetch byte in some way.
     fn apply(&mut self, address: u16, operation: fn(u8) -> u8) -> u8 {
@@ -201,9 +203,11 @@ impl InstructionController for VirtualMachine {
             // operand is address $HHLL
             // OPC #$BB
             Mode::Immediate => {
-                // TODO: Can we factor pc addition into get_heap?
-                // For some reason this is off by one, control.rs:93
-                // seems to be showing that we're fetching the previous byte.
+                /*
+                TODO: Can we factor pc addition into get_heap?
+                For some reason this is off by one, control.rs:93
+                seems to be showing that we're fetching the previous byte.
+                */
                 self.registers.pc += 1;
                 self.get_heap(0)
             }
@@ -219,9 +223,11 @@ impl InstructionController for VirtualMachine {
                 let offset = (hh << 2) | ll;
                 self.get_heap(offset as u16)
             }
-            // OPC ($LL, X)
-            // operand is zeropage address; effective address is word in (LL + X, LL + X + 1),
-            // inc. without carry: C.w($00LL + X)
+            /*
+            OPC ($LL, X)
+            operand is zeropage address; effective address is word in (LL + X, LL + X + 1),
+            inc. without carry: C.w(0LL + X)
+            */
             Mode::IndirectX => {
                 self.registers.pc += 1;
                 let ll = self.get_heap(0);
@@ -231,10 +237,12 @@ impl InstructionController for VirtualMachine {
                 let offset = (ehh << 2) | ell;
                 self.get_heap(offset as u16)
             }
-            // OPC ($LL), Y
-            // operand is zeropage address; effective address is word in (LL, LL + 1)
-            // incremented by Y with carry: C.w($00LL) + Y
-            // TODO: check if this is correct.
+            /*
+            OPC ($LL), Y
+            operand is zeropage address; effective address is word in (LL, LL + 1)
+            incremented by Y with carry: C.w(0LL) + Y
+            TODO: check if this is correct.
+            */
             Mode::IndirectY => {
                 self.registers.pc += 1;
                 let ll = self.get_heap(0);
@@ -246,8 +254,10 @@ impl InstructionController for VirtualMachine {
             }
             // OPC $BB
             Mode::Relative => {
-                // TODO: Check if i should be setting this
-                //self.registers.pc += 1;
+                /*
+                TODO: Check if i should be setting this
+                self.registers.pc += 1;
+                */
                 self.get_heap(1)
             }
             // OPC $LL
@@ -391,7 +401,7 @@ impl InstructionController for VirtualMachine {
         }
     }
 
-    /// Execute the an arbitrary op. It returns the vm's current `cycle` count.
+    /// Execute an arbitrary op. It returns the vm's current `cycle` count.
     #[bitmatch]
     fn step(&mut self) -> u64 {
         // Get current op TODO: Implement internal virtual bounds.

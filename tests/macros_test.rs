@@ -51,9 +51,9 @@ fn test_stuff_program_at_end() {
     use vm6502::stuff_program_at_end;
     let mut vm = VirtualMachine::new();
 
-    let prog = "69016901690169016901690100000000000000";
+    let prog = "6901";
     stuff_program_at_end!(vm, prog);
 
-    assert_eq!(vm.flatmap[vm.heap_bounds.1 - (prog.len() / 2)], 0xBA);
-    println!("{:?}", vm);
+    assert_eq!(vm.flatmap[vm.heap_bounds.1 - (prog.len() / 2) - 1], 0x69);
+    assert_eq!(vm.flatmap[vm.heap_bounds.1 - (prog.len() / 2)], 0x01);
 }
