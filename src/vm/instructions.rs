@@ -173,6 +173,10 @@ impl Instructions for VirtualMachine {
 
     fn and(&mut self) {
         let value = self.fetch();
+
+        #[cfg(feature = "show_vm_instr")]
+        eprintln!("AND: {:02X} & fetched({:02X}), mode: {:?}", self.registers.ac, value, self.addr_mode);
+
         self.registers.ac &= value;
 
         self.set_status(Status::Zero, self.registers.ac == 0);

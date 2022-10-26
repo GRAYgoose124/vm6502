@@ -255,10 +255,9 @@ impl InstructionController for VirtualMachine {
             }
             // OPC $BB
             Mode::Relative => {
-                /*
-                TODO: Check if i should be setting this
+                // TODO: Check if i should be setting this
                 self.registers.pc += 1;
-                */
+                
                 self.get_heap(1)
             }
             // OPC $LL
@@ -405,12 +404,15 @@ impl InstructionController for VirtualMachine {
     /// Execute an arbitrary op. It returns the vm's current `cycle` count.
     #[bitmatch]
     fn step(&mut self) -> u64 {
+        // First, lets increment the program counter.
+        self.registers.pc += 1;
+        
         // Get current op TODO: Implement internal virtual bounds.
         let op = self.get_heap(0);
         // Set internal mode.
         let m = self.mode(op);
 
-        #[cfg(feature = "show_ticked_instrs")]
+        #[cfg(feature = "show_vm_step")]
         println!("ticked over OP=0x{:02X}, {:?}", op, m);
 
         // Update internal state
@@ -418,12 +420,10 @@ impl InstructionController for VirtualMachine {
 
         // Increment PC for the OP fetched.
         // Logic says this should be done before, but maybe after?
-        if self.addr_mode != Mode::Relative {
-            self.registers.pc = self.registers.pc.wrapping_add(1);
-            if self.registers.pc == 0 {
-                self.registers.pc = self.heap_bounds.0 as u16;
-            }
-        }
+        // self.registers.pc = self.registers.pc.wrapping_add(1);
+        // if self.registers.pc == 0 {
+        //     self.registers.pc = self.heap_bounds.0 as u16;
+        // } // We don't need this, fetch i
 
         // Push the current program counter to the stack for a relative jump.
         // This is for procedures, move.

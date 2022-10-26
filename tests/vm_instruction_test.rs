@@ -24,6 +24,7 @@ fn adc_imd() {
 fn and_imd() {
     let mut vm = VirtualMachine::new();
     vm.set_program(0x0000, "29FF29FF2900");
+    eprintln!("Program: {:?}...", &vm.flatmap[0x0200..0x0203]);
     vm.registers.ac = 0x00;
 
     vm.step();
@@ -31,8 +32,10 @@ fn and_imd() {
     assert_eq!(vm.get_status(Status::Zero), true);
 
     vm.registers.ac = 0xFF;
+    eprintln!("PC byte 0: {}", vm.get_heap(vm.registers.pc));
+    eprintln!("PC byte 1: {}", vm.get_heap(vm.registers.pc + 1));
     vm.step();
-    assert_eq!(vm.registers.ac, 0xFF);
+    assert_eq!(vm.registers.ac, 0xFF & 0xFF);
     assert_eq!(vm.get_status(Status::Zero), false);
 
     vm.step();

@@ -34,10 +34,7 @@ impl HeapInterface for VirtualMachine {
         #[cfg(feature = "check_heap_bounds")]
         self.bounds_check(addr);
 
-        // TODO: This isn't tightly coupled with the VM because we're not also incrementing PC.
-        // It may be sensical to do this in fetch to avoid the mut self reference.
-        self.cycles += 1;
-
+ 
         self.flatmap[addr]
     }
 
