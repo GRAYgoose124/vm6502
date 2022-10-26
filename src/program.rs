@@ -19,6 +19,13 @@ pub trait ProgramController {
     /// Insert a hex encoded string `prog` at heap offset `offset` and set the PC to `offset`.
     fn set_program(&mut self, offset: u16, prog: &str);
 
+    /// Insert a series of bytes `prog` at heap offset `offset`.
+    fn insert_bytes(&mut self, offset: u16, prog: Vec<u8>);
+
+    /// Load a program from a file at `path` at heap offset `offset`.
+    /// The file should be a flat binary file.
+    fn load_program(&mut self, offset: u16, path: &str);
+
     /// Set the interrupt vectors to the given values.
     fn set_interrupt_vectors(&mut self, nmi: u16, irq: u16, brk: u16);
     /// Set the interrupt vectors to the values: (0xFFFA, 0xFFFB), (0xFFFC, 0xFFFD), (0xFFFE, 0xFFFF)
@@ -57,6 +64,34 @@ impl ProgramController for VirtualMachine {
     fn set_program(&mut self, offset: u16, prog: &str) {
         self.insert_program(offset, prog);
         self.registers.pc = offset;
+    }
+
+    /// Insert a series of bytes `prog` at heap offset `offset`.
+    fn insert_bytes(&mut self, offset: u16, prog: Vec<u8>) {
+        let offset = offset + self.heap_bounds.0 as u16;
+
+        for (i, byte) in prog.iter().enumerate() {
+            self.flatmap[offset as usize + i] = *byte;
+        }
+    }
+
+    /// Load a program from a file at `path` at heap offset `offset`.
+    fn load_program(&mut self, offset: u16, path: &str) {
+        let offset = offset + self.heap_bounds.0 as u16;
+        let prog = std::fs::read(path).unwrap();
+
+        let len = prog.len();
+        
+        // 0x200 + 0x012 is accounting for zp, stack and interrupt vectors.
+        if (offset as usize + len) > self.heap_bounds.1 - 0x212 {
+            panic!("Program is too large to fit in heap.");
+        } else if len % 2 != 0 {
+            panic!("Program is not byte aligned.");
+        } 
+
+        for (i, byte) in prog.iter().enumerate() {
+            self.flatmap[offset as usize + i] = *byte;
+        }
     }
 
     fn set_interrupt_vectors(&mut self, nmi: u16, irq: u16, brk: u16) {

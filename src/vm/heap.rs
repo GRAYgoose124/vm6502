@@ -13,7 +13,7 @@ pub mod prelude {
 pub trait HeapInterface {
     // Low level iinterface
     /// Returns the value at the heap address given.
-    fn get_heap(&self, virt_addr: u16) -> u8;
+    fn get_heap(&mut self, virt_addr: u16) -> u8;
     /// Sets the value at the heap address given.
     fn set_heap(&mut self, virt_addr: u16, byte: u8);
 
@@ -28,11 +28,15 @@ pub trait HeapInterface {
 
 impl HeapInterface for VirtualMachine {
     // TODO: Reimplement proper bounds checking.
-    fn get_heap(&self, virt_addr: u16) -> u8 {
+    fn get_heap(&mut self, virt_addr: u16) -> u8 {
         let addr = virt_addr as usize + self.heap_bounds.0;
 
         #[cfg(feature = "check_heap_bounds")]
         self.bounds_check(addr);
+
+        // TODO: This isn't tightly coupled with the VM because we're not also incrementing PC.
+        // It may be sensical to do this in fetch to avoid the mut self reference.
+        self.cycles += 1;
 
         self.flatmap[addr]
     }

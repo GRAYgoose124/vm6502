@@ -101,7 +101,14 @@ pub mod machine_arrays {
     //The total number of cycles VALID_OPCODES[\n] should spend.
     //
     // This is mostly for debuggin purposes and is to be deprecated for internal use.
-    //pub static VALID_CYCLE_COUNTS: [u8; N_VALID_OPS] = [];
+    pub static VALID_CYCLE_COUNTS: [u8; N_VALID_OPS] = [
+        7, 6, 3, 5, 3, 2, 2, 4, 6, 2, 5, 4, 6, 2, 4, 4, 7, 6, 6, 3, 3, 5, 3, 2, 2, 4, 6, 2, 5, 4,
+        6, 2, 4, 4, 7, 6, 6, 3, 4, 4, 6, 5, 3, 2, 2, 3, 4, 2, 5, 4, 6, 2, 4, 4, 7, 6, 6, 3, 4, 4,
+        6, 5, 3, 2, 2, 4, 4, 2, 5, 4, 6, 2, 4, 4, 7, 6, 6, 3, 2, 2, 3, 4, 2, 2, 4, 4, 7, 6, 2, 2,
+        3, 4, 2, 2, 4, 4, 7, 6, 2, 2, 2, 4, 2, 2, 4, 4, 7, 6, 2, 2, 3, 4, 2, 2, 4, 4, 7, 6, 2, 2,
+        2, 4, 2, 2, 4, 4, 7, 6, 2, 2, 3, 4, 2, 2, 4, 4, 7, 6, 2, 2, 2, 4, 2, 2, 4, 4, 7, 6, 2, 2,
+        2,
+    ];
 
     /// All opcodes and their names, as tuples in order.
     ///

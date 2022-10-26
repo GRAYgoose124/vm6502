@@ -209,6 +209,7 @@ impl InstructionController for VirtualMachine {
                 seems to be showing that we're fetching the previous byte.
                 */
                 self.registers.pc += 1;
+                // I believe we can also increment the cycles:
                 self.get_heap(0)
             }
             // OPC
@@ -768,7 +769,8 @@ impl InstructionController for VirtualMachine {
         println!("{:?}", self);
 
         // This should be counting the consumed ops.
-        self.cycles += 1;
+        // Incrementing in vm.get_heap for now.
+        // self.cycles += 1;
 
         // TODO: This should be updated (along with the PC) by the above commands.
         self.cycles

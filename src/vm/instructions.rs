@@ -129,15 +129,15 @@ impl Instructions for VirtualMachine {
     fn brk(&mut self) {
         // Stop vm execution if we try incrementing from 0xFFFF
         // Not spec compliant.
-        if self.registers.pc >= (u16::MAX - 1) {
-            self.halted = true;
-            return;
-        }
+        self.halted = true;
 
+        // This is emulating overflow.
         self.registers.pc = self.registers.pc.wrapping_add(1);
 
         self.push((self.registers.pc >> 8) as u8);
-        self.push(self.registers.pc as u8);
+        // Skipping the next bytes for the return address
+        // https://retrocomputingforum.com/t/reading-the-6502-break-mark-and-how-fast-was-the-6502-back-in-the-day/2618
+        self.push((self.registers.pc + 2) as u8);
 
         // Set the break flag inline, as it's not actually set in the status register.
         self.push(self.registers.sr | 0x10);
@@ -176,6 +176,7 @@ impl Instructions for VirtualMachine {
         self.registers.ac &= value;
 
         self.set_status(Status::Zero, self.registers.ac == 0);
+        self.set_status(Status::Negative, self.registers.ac & 0x80 != 0);
     }
 
     fn eor(&mut self) {
@@ -183,6 +184,7 @@ impl Instructions for VirtualMachine {
         self.registers.ac ^= value;
 
         self.set_status(Status::Zero, self.registers.ac == 0);
+        self.set_status(Status::Negative, self.registers.ac & 0x80 != 0);
     }
 
     fn ora(&mut self) {
