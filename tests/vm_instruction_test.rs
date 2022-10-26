@@ -3,7 +3,6 @@ use vm6502::prelude::*;
 use vm6502::status;
 use vm6502::utils::machine_arrays::VALID_CYCLE_COUNTS;
 // TODO: The problem is likely in the core and functionality.
-#[ignore]
 #[test]
 fn adc_imd() {
     let mut vm = VirtualMachine::new();
@@ -19,7 +18,6 @@ fn adc_imd() {
 }
 
 // TODO: The problem is likely in the core and functionality.
-#[ignore]
 #[test]
 fn and_imd() {
     let mut vm = VirtualMachine::new();

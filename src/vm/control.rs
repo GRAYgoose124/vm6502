@@ -93,7 +93,7 @@ assert_eq!(mode, Mode::Immediate);
 ```
 ## `fetch`
 // TODO: Unignore this later.
-```rust,ignore
+```
 use vm6502::prelude::*;
 
 let mut vm = VirtualMachine::new();
@@ -107,10 +107,11 @@ assert_ne!(vm.flatmap[0x0001], byte, "Byte {} was not set to 0x0201", byte);
 assert_eq!(byte, vm.flatmap[0x0201], "Byte {} was not set at 0x0201", byte);
 
 // Should PC be 0x01 or two here?
-vm.registers.pc = 0x01;
+vm.registers.pc = 0x00;
 vm.addr_mode = Mode::Immediate;
+
 let fetched = vm.fetch();
-assert_eq!(vm.registers.pc, 0x02, "PC should be incremented by 1 after fetch");
+assert_eq!(vm.registers.pc, 0x01, "PC should be incremented by 1 after fetch");
 
 assert_eq!(fetched, byte, "Fetched byte {} does not match expected byte {}", fetched, byte);
 ```
@@ -159,30 +160,24 @@ impl InstructionController for VirtualMachine {
             Mode::Absolute => {
                 // Todo can we move increments to get heap? We have to fix Relative to be
                 // parallel. I don't think so, because indirect fetching.
-                self.registers.pc += 1;
-                let ll = self.get_heap(0) as usize;
-                self.registers.pc += 1;
-                let hh = self.get_heap(0) as usize;
+                let ll = self.inc_pc_and_get_byte() as usize;
+                let hh = self.inc_pc_and_get_byte() as usize;
 
                 let offset = (hh << 2) | ll;
                 self.get_heap(offset as u16)
             }
             // OPC $LLHH,X
             Mode::AbsoluteX => {
-                self.registers.pc += 1;
-                let ll = self.get_heap(0) as usize;
-                self.registers.pc += 1;
-                let hh = self.get_heap(0) as usize;
+                let ll = self.inc_pc_and_get_byte() as usize;
+                let hh = self.inc_pc_and_get_byte() as usize;
 
                 let offset = (hh << 2) | (ll + self.registers.x as usize);
                 self.get_heap(offset as u16)
             }
             // OPC $LLHH,Y
             Mode::AbsoluteY => {
-                self.registers.pc += 1;
-                let ll = self.get_heap(0) as usize;
-                self.registers.pc += 1;
-                let hh = self.get_heap(0) as usize;
+                let ll = self.inc_pc_and_get_byte() as usize;
+                let hh = self.inc_pc_and_get_byte() as usize;
 
                 let offset = (hh << 2) | (ll + self.registers.y as usize);
                 self.get_heap(offset as u16)
@@ -208,18 +203,15 @@ impl InstructionController for VirtualMachine {
                 For some reason this is off by one, control.rs:93
                 seems to be showing that we're fetching the previous byte.
                 */
-                self.registers.pc += 1;
                 // I believe we can also increment the cycles:
-                self.get_heap(0)
+                self.inc_pc_and_get_byte()
             }
             // OPC
             Mode::Implied => 0,
             // OPC ($LLHH)
             Mode::Indirect => {
-                self.registers.pc += 1;
-                let ll = self.get_heap(0) as usize;
-                self.registers.pc += 1;
-                let hh = self.get_heap(0) as usize;
+                let ll = self.inc_pc_and_get_byte() as usize;
+                let hh = self.inc_pc_and_get_byte() as usize;
 
                 let offset = (hh << 2) | ll;
                 self.get_heap(offset as u16)
@@ -230,8 +222,7 @@ impl InstructionController for VirtualMachine {
             inc. without carry: C.w(0LL + X)
             */
             Mode::IndirectX => {
-                self.registers.pc += 1;
-                let ll = self.get_heap(0);
+                let ll = self.inc_pc_and_get_byte();
                 let ell = self.get_heap((ll + self.registers.x) as u16) as usize;
                 let ehh = self.get_heap((ll + self.registers.x + 1) as u16) as usize;
 
@@ -245,8 +236,7 @@ impl InstructionController for VirtualMachine {
             TODO: check if this is correct.
             */
             Mode::IndirectY => {
-                self.registers.pc += 1;
-                let ll = self.get_heap(0);
+                let ll = self.inc_pc_and_get_byte();
                 let ell = self.get_heap(ll as u16);
                 let ehh = self.get_heap(ll as u16);
 
@@ -256,26 +246,22 @@ impl InstructionController for VirtualMachine {
             // OPC $BB
             Mode::Relative => {
                 // TODO: Check if i should be setting this
-                self.registers.pc += 1;
-                
-                self.get_heap(1)
+                self.inc_pc_and_get_byte()
             }
             // OPC $LL
             Mode::ZeroPage => {
-                self.registers.pc += 1;
-                let ll = self.get_heap(0);
+                let ll = self.inc_pc_and_get_byte();
                 self.get_heap(ll as u16)
             }
             // OPC $LL, X
             Mode::ZeroPageX => {
-                self.registers.pc += 1;
-                let ll = self.get_heap(0);
+                let ll = self.inc_pc_and_get_byte();
                 self.get_heap((ll + self.registers.x).into())
             }
             // OPC $LL, Y
             Mode::ZeroPageY => {
                 self.registers.pc += 1;
-                let ll = self.get_heap(0);
+                let ll = self.inc_pc_and_get_byte();
                 self.get_heap((ll + self.registers.y).into())
             }
             _ => panic!(
@@ -404,16 +390,13 @@ impl InstructionController for VirtualMachine {
     /// Execute an arbitrary op. It returns the vm's current `cycle` count.
     #[bitmatch]
     fn step(&mut self) -> u64 {
-        // First, lets increment the program counter.
-        self.registers.pc += 1;
-        
         // Get current op TODO: Implement internal virtual bounds.
-        let op = self.get_heap(0);
+        let op = self.get_pc_byte();
         // Set internal mode.
         let m = self.mode(op);
 
         #[cfg(feature = "show_vm_step")]
-        println!("ticked over OP=0x{:02X}, {:?}", op, m);
+        println!("step: 0x{:04X}: OP=0x{:02X}, {:?}", self.registers.pc, op, m);
 
         // Update internal state
         self.addr_mode = m;
@@ -433,7 +416,7 @@ impl InstructionController for VirtualMachine {
 
             self.registers.ac = bytes[1];
             self.push();
-            self.registers.ac = bytes[0];
+            self.registers.ac = bytes[0];gg
             self.push();
 
             self.registers.ac = old_ac;
@@ -771,6 +754,7 @@ impl InstructionController for VirtualMachine {
         // This should be counting the consumed ops.
         // Incrementing in vm.get_heap for now.
         // self.cycles += 1;
+        self.registers.pc = self.registers.pc.wrapping_add(1);
 
         // TODO: This should be updated (along with the PC) by the above commands.
         self.cycles

@@ -16,6 +16,9 @@ pub trait HeapInterface {
     fn get_heap(&mut self, virt_addr: u16) -> u8;
     /// Sets the value at the heap address given.
     fn set_heap(&mut self, virt_addr: u16, byte: u8);
+    /// Get the byte on the heap at PC + offset.
+    fn get_pc_byte(&mut self) -> u8;
+    fn inc_pc_and_get_byte(&mut self) -> u8;
 
     // Mid level interface
     // return the bytes, 0xHH__ from the PC. More of a convenience/debug function.
@@ -36,6 +39,15 @@ impl HeapInterface for VirtualMachine {
 
  
         self.flatmap[addr]
+    }
+
+    fn get_pc_byte(&mut self) -> u8 {
+        self.get_heap(self.registers.pc)
+    }
+
+    fn inc_pc_and_get_byte(&mut self) -> u8 {
+        self.registers.pc = self.registers.pc.wrapping_add(1);
+        self.get_heap(self.registers.pc)
     }
 
     fn set_heap(&mut self, virt_addr: u16, byte: u8) {
