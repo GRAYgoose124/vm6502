@@ -56,6 +56,22 @@ fn asl_cover() {
     }
 }
 
+#[test]
+fn eor() {
+    let mut vm = VirtualMachine::new();
+    vm.set_program(0x0000, "49FF4900");
+    
+    vm.registers.ac = 0xFF;
+    vm.step();
+    assert_eq!(vm.registers.ac, 0x00);
+    assert_eq!(vm.get_status(Status::Zero), true);
+
+    vm.registers.ac = 0xFF;
+    vm.step();
+    assert_eq!(vm.registers.ac, 0xFF);
+    assert_eq!(vm.get_status(Status::Zero), false);
+}
+
 #[ignore]
 #[test]
 fn check_cycles_used() {
