@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{check_page_cross, prelude::*};
 
 pub mod prelude {
     pub use crate::vm::instructions::Instructions;
@@ -9,30 +9,31 @@ pub mod prelude {
 /// This is placed in a separate trait due to the inherent number of instructions.
 pub trait Instructions {
     fn abs_zp_acc_op(&mut self, operation: fn(u8) -> u8) -> u8;
+    fn relative_jump(&mut self, offset: i8, cond: bool);
+
     /// Add with carry
     fn adc(&mut self);
     /// Logical AND
     fn and(&mut self);
     /// Arithmetic shift left
     fn asl(&mut self);
-
     // Conditional instructions
     /// Branch on carry clear
-    fn bcc(&mut self, offset: u8);
+    fn bcc(&mut self, offset: i8);
     /// Branch on carry set
-    fn bcs(&mut self, offset: u8);
+    fn bcs(&mut self, offset: i8);
     /// Branch on equal (zero set)
-    fn beq(&mut self, offset: u8);
+    fn beq(&mut self, offset: i8);
     /// Branch on minus (negative set)
-    fn bne(&mut self, offset: u8);
+    fn bne(&mut self, offset: i8);
     /// Branch on plus (negative clear)
-    fn bpl(&mut self, offset: u8);
+    fn bpl(&mut self, offset: i8);
     // Branch on Minus (negative set)
-    fn bmi(&mut self, offset: u8);
+    fn bmi(&mut self, offset: i8);
     /// Branch on overflow clear
-    fn bvc(&mut self, offset: u8);
+    fn bvc(&mut self, offset: i8);
     /// Branch on overflow set
-    fn bvs(&mut self, offset: u8);
+    fn bvs(&mut self, offset: i8);
     /// Bit test
     fn bit(&mut self);
     /// Break
@@ -152,7 +153,7 @@ impl Instructions for VirtualMachine {
     }
 
     fn adc(&mut self) {
-        let value = self.fetch(); // Fetch is directed by the internal mode.
+        let value = self.fetch_byte(); // Fetch is directed by the internal mode.
 
         let result = self.registers.ac as u16 + value as u16;
         let (carry, carried) = (result > 0xFF, result & 0xFF);
@@ -162,9 +163,9 @@ impl Instructions for VirtualMachine {
     }
 
     fn sbc(&mut self) {
-        let value = self.fetch(); // Fetch is directed by the internal mode.
+        let value = self.fetch_addr(); // Fetch is directed by the internal mode.
 
-        let result = self.registers.ac as u16 - value as u16;
+        let result = self.registers.ac as u16 - value;
         let (carry, carried) = (result > 0xFF, result & 0xFF);
 
         self.registers.ac = carried as u8;
@@ -172,7 +173,7 @@ impl Instructions for VirtualMachine {
     }
 
     fn and(&mut self) {
-        let value = self.fetch();
+        let value = self.fetch_byte();
 
         #[cfg(feature = "show_vm_instr")]
         eprintln!(
@@ -187,7 +188,7 @@ impl Instructions for VirtualMachine {
     }
 
     fn eor(&mut self) {
-        let value = self.fetch();
+        let value = self.fetch_byte();
         self.registers.ac ^= value;
 
         self.set_status(Status::Zero, self.registers.ac == 0);
@@ -195,56 +196,75 @@ impl Instructions for VirtualMachine {
     }
 
     fn ora(&mut self) {
-        let data = self.fetch();
+        let data = self.fetch_byte();
         self.registers.ac |= data;
 
         self.set_status(Status::Zero, self.registers.ac == 0);
         self.set_status(Status::Negative, self.registers.ac & 0x80 != 0);
     }
 
-    fn bcc(&mut self, offset: u8) {
+    // TODO: Move to instructions?
+    /// This is a generic jump instruction used by the conditional branches. It is not a real instruction.
+    fn relative_jump(&mut self, offset: i8, cond: bool) {
+        let offset = offset as i16;
+        let newpc = self.registers.pc.wrapping_add_signed(offset);
+        self.cycles += 2;
+
+        #[cfg(feature = "show_relative_offset")]
+        println!("\t\tRelative jump: 0x{:02X}", offset);
+
+        if cond {
+            self.cycles += if check_page_cross!(self, newpc) { 2 } else { 1 };
+            self.registers.pc = newpc;
+
+            #[cfg(feature = "show_relative_offset")]
+            println!("\t\t\tRelative jump taken. PC: {:04X}", self.registers.pc);
+        }
+    }
+
+    fn bcc(&mut self, offset: i8) {
         self.relative_jump(offset, !self.get_status(Status::Carry));
     }
 
-    fn bcs(&mut self, offset: u8) {
+    fn bcs(&mut self, offset: i8) {
         self.relative_jump(offset, self.get_status(Status::Carry));
     }
 
-    fn beq(&mut self, offset: u8) {
+    fn beq(&mut self, offset: i8) {
         self.relative_jump(offset, self.get_status(Status::Zero));
     }
 
-    fn bne(&mut self, offset: u8) {
+    fn bne(&mut self, offset: i8) {
         self.relative_jump(offset, !self.get_status(Status::Zero));
     }
 
-    fn bpl(&mut self, offset: u8) {
+    fn bpl(&mut self, offset: i8) {
         self.relative_jump(offset, !self.get_status(Status::Negative));
     }
 
-    fn bvc(&mut self, offset: u8) {
+    fn bvc(&mut self, offset: i8) {
         self.relative_jump(offset, !self.get_status(Status::Overflow));
     }
 
-    fn bvs(&mut self, offset: u8) {
+    fn bvs(&mut self, offset: i8) {
         self.relative_jump(offset, self.get_status(Status::Overflow));
     }
 
-    fn bmi(&mut self, offset: u8) {
+    fn bmi(&mut self, offset: i8) {
         self.relative_jump(offset, self.get_status(Status::Negative));
     }
 
     // Incrementing OPs.
     fn dec(&mut self) {
-        let addr = self.fetch();
+        let addr = self.fetch_addr();
         let operation = |value: u8| value.wrapping_sub(1);
-        self.apply(addr as u16, operation);
+        self.apply(addr, operation);
     }
 
     fn inc(&mut self) {
-        let addr = self.fetch();
+        let addr = self.fetch_addr();
         let operation = |value: u8| value.wrapping_add(1);
-        self.apply(addr as u16, operation);
+        self.apply(addr, operation);
     }
 
     fn dex(&mut self) {
@@ -273,7 +293,7 @@ impl Instructions for VirtualMachine {
 
     /// Load Instructions;
     fn lda(&mut self) {
-        let data = self.fetch();
+        let data = self.fetch_byte();
         self.registers.ac = data;
 
         self.set_status(Status::Zero, data == 0);
@@ -281,7 +301,7 @@ impl Instructions for VirtualMachine {
     }
 
     fn ldx(&mut self) {
-        let data = self.fetch();
+        let data = self.fetch_byte();
         self.registers.x = data;
 
         self.set_status(Status::Zero, data == 0);
@@ -289,7 +309,7 @@ impl Instructions for VirtualMachine {
     }
 
     fn ldy(&mut self) {
-        let data = self.fetch();
+        let data = self.fetch_byte();
         self.registers.y = data;
 
         self.set_status(Status::Zero, data == 0);
@@ -298,7 +318,7 @@ impl Instructions for VirtualMachine {
 
     // Comparison OPs
     fn bit(&mut self) {
-        let value = self.fetch();
+        let value = self.fetch_byte();
         let result = self.registers.ac & value;
 
         self.set_status(Status::Zero, result == 0);
@@ -307,8 +327,8 @@ impl Instructions for VirtualMachine {
     }
 
     fn cmp(&mut self) {
-        let value = self.fetch();
-        let result = self.registers.ac as u16 - value as u16;
+        let value = self.fetch_addr();
+        let result = self.registers.ac as u16 - value;
 
         self.set_status(Status::Carry, result < 0x100);
         self.set_status(Status::Zero, result == 0);
@@ -316,8 +336,8 @@ impl Instructions for VirtualMachine {
     }
 
     fn cpx(&mut self) {
-        let value = self.fetch();
-        let result = self.registers.x as u16 - value as u16;
+        let value = self.fetch_addr();
+        let result = self.registers.x as u16 - value;
 
         self.set_status(Status::Carry, result < 0x100);
         self.set_status(Status::Zero, result == 0);
@@ -325,8 +345,8 @@ impl Instructions for VirtualMachine {
     }
 
     fn cpy(&mut self) {
-        let value = self.fetch();
-        let result = self.registers.y as u16 - value as u16;
+        let value = self.fetch_addr();
+        let result = self.registers.y as u16 - value;
 
         self.set_status(Status::Carry, result < 0x100);
         self.set_status(Status::Zero, result == 0);
@@ -336,7 +356,7 @@ impl Instructions for VirtualMachine {
     // TODO: Move to separate mod, general_instructions?
     /// Accumulator <-> ZeroPage, Absolute, ZeroPageX and AbsoluteX
     fn abs_zp_acc_op(&mut self, operation: fn(u8) -> u8) -> u8 {
-        let data = self.fetch();
+        let data = self.fetch_byte();
 
         // Performs an operation and moves it to destination.
         let result = self.apply(data as u16, operation);
@@ -381,21 +401,21 @@ impl Instructions for VirtualMachine {
 
     // Jumping/Procedure OPs
     fn jmp(&mut self) {
-        let haddr = self.fetch();
-        let laddr = self.fetch();
+        let haddr = self.fetch_addr();
+        let laddr = self.fetch_addr();
 
-        self.registers.pc = (haddr as u16) << 8 | laddr as u16;
+        self.registers.pc = (haddr) << 8 | laddr;
     }
 
     fn jsr(&mut self) {
-        let haddr = self.fetch();
-        let laddr = self.fetch();
+        let haddr = self.fetch_addr();
+        let laddr = self.fetch_addr();
 
         let pc = self.registers.pc - 1;
         self.push((pc >> 8) as u8);
         self.push(pc as u8);
 
-        self.registers.pc = (haddr as u16) << 8 | laddr as u16;
+        self.registers.pc = (haddr) << 8 | laddr;
     }
 
     fn rti(&mut self) {
@@ -447,36 +467,51 @@ impl Instructions for VirtualMachine {
 
     // Store Operations
     fn sta(&mut self) {
-        let data = self.fetch();
+        let data = self.fetch_addr();
         // TODO: This code duplication can likely be refactored, similarly to ROL/ROR, but more general?
+        // It's similar to apply... source, dest...
         // I've made some glaring assumptions about the 6502 that are catching up now.
         match self.addr_mode {
             Mode::ZeroPage => self.flatmap[data as usize] = self.registers.ac,
-            Mode::ZeroPageX => self.flatmap[(data + self.registers.x) as usize] = self.registers.ac,
+            Mode::ZeroPageX => {
+                self.flatmap[(data + self.registers.x as u16) as usize] = self.registers.ac
+            }
             Mode::Absolute => self.flatmap[data as usize] = self.registers.ac,
-            Mode::AbsoluteX => self.flatmap[(data + self.registers.x) as usize] = self.registers.ac,
-            Mode::AbsoluteY => self.flatmap[(data + self.registers.y) as usize] = self.registers.ac,
-            Mode::IndirectX => self.flatmap[(data + self.registers.x) as usize] = self.registers.ac,
-            Mode::IndirectY => self.flatmap[(data + self.registers.y) as usize] = self.registers.ac,
+            Mode::AbsoluteX => {
+                self.flatmap[(data + self.registers.x as u16) as usize] = self.registers.ac
+            }
+            Mode::AbsoluteY => {
+                self.flatmap[(data + self.registers.y as u16) as usize] = self.registers.ac
+            }
+            Mode::IndirectX => {
+                self.flatmap[(data + self.registers.x as u16) as usize] = self.registers.ac
+            }
+            Mode::IndirectY => {
+                self.flatmap[(data + self.registers.y as u16) as usize] = self.registers.ac
+            }
             _ => panic!("Invalid addressing mode for STA"),
         }
     }
 
     fn stx(&mut self) {
-        let data = self.fetch();
+        let data = self.fetch_addr();
         match self.addr_mode {
             Mode::ZeroPage => self.flatmap[data as usize] = self.registers.x,
-            Mode::ZeroPageY => self.flatmap[(data + self.registers.y) as usize] = self.registers.x,
+            Mode::ZeroPageY => {
+                self.flatmap[(data + self.registers.y as u16) as usize] = self.registers.x
+            }
             Mode::Absolute => self.flatmap[data as usize] = self.registers.x,
             _ => panic!("Invalid addressing mode for STX"),
         }
     }
 
     fn sty(&mut self) {
-        let data = self.fetch();
+        let data = self.fetch_addr();
         match self.addr_mode {
             Mode::ZeroPage => self.flatmap[data as usize] = self.registers.y,
-            Mode::ZeroPageX => self.flatmap[(data + self.registers.x) as usize] = self.registers.y,
+            Mode::ZeroPageX => {
+                self.flatmap[(data + self.registers.x as u16) as usize] = self.registers.y
+            }
             Mode::Absolute => self.flatmap[data as usize] = self.registers.y,
             _ => panic!("Invalid addressing mode for STY"),
         }

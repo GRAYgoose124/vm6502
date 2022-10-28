@@ -1,7 +1,6 @@
 use bitmatch::bitmatch;
 use std::fmt::{Debug, Formatter, Result};
 
-use crate::check_page_cross;
 use crate::prelude::*;
 
 pub mod prelude {
@@ -54,13 +53,15 @@ pub trait InstructionController {
     // fn opcode(&mut self, op: &str);
     // fn opcode(&mut self, op: u8);
 
-    // TODO: Mode could be a macro, or other macros could be integrated. Consider this API decision more closely.
-    fn mode(&mut self, op: u8) -> Mode;
-    fn fetch(&mut self) -> u8;
-    fn apply(&mut self, address: u16, operation: fn(u8) -> u8) -> u8;
+    // Statefully sets the mode.
+    fn set_mode(&mut self) -> Mode;
+    /// Statefully fetches the address under the current mode.
+    fn fetch_addr(&mut self) -> u16;
+    /// Uses fetch_addr internally.
+    fn fetch_byte(&mut self) -> u8;
 
-    //
-    fn relative_jump(&mut self, offset: u8, cond: bool);
+    /// Nee
+    fn apply(&mut self, source: u16, operation: fn(u8) -> u8) -> u8;
 }
 
 /**
@@ -86,7 +87,8 @@ assert_eq!(vm.flatmap[vm.registers.pc as usize + vm.heap_bounds.0], 0xFF);
 use vm6502::prelude::*;
 
 let mut vm = VirtualMachine::new();
-let mode = vm.mode(0x69);
+vm.active_byte = 0x69;
+let mode = vm.set_mode();
 
 assert_eq!(mode, Mode::Immediate);
 ```
@@ -109,14 +111,15 @@ assert_eq!(byte, vm.flatmap[0x0201], "Byte {} was not set at 0x0201", byte);
 vm.registers.pc = 0x00;
 vm.addr_mode = Mode::Immediate;
 
-let fetched = vm.fetch();
+let fetched = vm.fetch_byte();
 assert_eq!(vm.registers.pc, 0x01, "PC should be incremented by 1 after fetch");
 
 assert_eq!(fetched, byte, "Fetched byte {} does not match expected byte {}", fetched, byte);
 ```
 */
 impl InstructionController for VirtualMachine {
-    // This can probably be combined with fetch byte in some way.
+    // Apply the operation to the address and return the result.
+    // probably need a source/destination distinction here.
     fn apply(&mut self, address: u16, operation: fn(u8) -> u8) -> u8 {
         let doit = |d: &mut u8| -> u8 {
             let r = operation(*d);
@@ -153,134 +156,12 @@ impl InstructionController for VirtualMachine {
         }
     }
 
-    /// Fetch the next byte from the program counter.
-    fn fetch(&mut self) -> u8 {
-        match self.addr_mode {
-            Mode::Absolute => {
-                // Todo can we move increments to get heap? We have to fix Relative to be
-                // parallel. I don't think so, because indirect fetching.
-                let ll = self.inc_pc_and_get_byte() as usize;
-                let hh = self.inc_pc_and_get_byte() as usize;
-
-                let offset = (hh << 2) | ll;
-                self.get_heap(offset as u16)
-            }
-            // OPC $LLHH,X
-            Mode::AbsoluteX => {
-                let ll = self.inc_pc_and_get_byte() as usize;
-                let hh = self.inc_pc_and_get_byte() as usize;
-
-                let offset = (hh << 2) | (ll + self.registers.x as usize);
-                self.get_heap(offset as u16)
-            }
-            // OPC $LLHH,Y
-            Mode::AbsoluteY => {
-                let ll = self.inc_pc_and_get_byte() as usize;
-                let hh = self.inc_pc_and_get_byte() as usize;
-
-                let offset = (hh << 2) | (ll + self.registers.y as usize);
-                self.get_heap(offset as u16)
-            },
-            Mode::Accumulator => self.registers.ac,
-            // OPC $LLHH
-            // operand is address $HHLL
-            // OPC #$BB
-            Mode::Immediate => {
-                /*
-                TODO: Can we factor pc addition into get_heap?
-                For some reason this is off by one, control.rs:93
-                seems to be showing that we're fetching the previous byte.
-                */
-                // I believe we can also increment the cycles:
-                self.inc_pc_and_get_byte()
-            }
-            // OPC
-            Mode::Implied => 0,
-            // OPC ($LLHH)
-            Mode::Indirect => {
-                let ll = self.inc_pc_and_get_byte() as usize;
-                let hh = self.inc_pc_and_get_byte() as usize;
-
-                let offset = (hh << 2) | ll;
-                self.get_heap(offset as u16)
-            }
-            /*
-            OPC ($LL, X)
-            operand is zeropage address; effective address is word in (LL + X, LL + X + 1),
-            inc. without carry: C.w(0LL + X)
-            */
-            Mode::IndirectX => {
-                let ll = self.inc_pc_and_get_byte();
-                let ell = self.get_heap((ll + self.registers.x) as u16) as usize;
-                let ehh = self.get_heap((ll + self.registers.x + 1) as u16) as usize;
-
-                let offset = (ehh << 2) | ell;
-                self.get_heap(offset as u16)
-            }
-            /*
-            OPC ($LL), Y
-            operand is zeropage address; effective address is word in (LL, LL + 1)
-            incremented by Y with carry: C.w(0LL) + Y
-            TODO: check if this is correct.
-            */
-            Mode::IndirectY => {
-                let ll = self.inc_pc_and_get_byte();
-                let ell = self.get_heap(ll as u16);
-                let ehh = self.get_heap(ll as u16);
-
-                let offset = (ehh << 2) | (ell + self.registers.y);
-                self.get_heap(offset as u16)
-            }
-            // OPC $BB
-            Mode::Relative => {
-                // TODO: Check if i should be setting this
-                self.inc_pc_and_get_byte()
-            }
-            // OPC $LL
-            Mode::ZeroPage => {
-                let ll = self.inc_pc_and_get_byte();
-                self.get_heap(ll as u16)
-            }
-            // OPC $LL, X
-            Mode::ZeroPageX => {
-                let ll = self.inc_pc_and_get_byte();
-                self.get_heap((ll + self.registers.x).into())
-            }
-            // OPC $LL, Y
-            Mode::ZeroPageY => {
-                self.registers.pc += 1;
-                let ll = self.inc_pc_and_get_byte();
-                self.get_heap((ll + self.registers.y).into())
-            }
-        }
-    }
-
-    // This is setting the offset for branch instructions inside of step(). (TODO: refactor step into get_op, step, then add run.)
-    // Because we set the offset here, we don't set it in fetch(), instead we call it.
-    // TODO convert all self.flatmap[self.heap_bounds.0 + ....] to a self::HeapInterface.read() fn call
-    fn relative_jump(&mut self, fetched: u8, cond: bool) {
-        let offset = fetched as i16;
-        let newpc = self.registers.pc.wrapping_add_signed(offset);
-        self.cycles += 2;
-
-        #[cfg(feature = "show_relative_offset")]
-        println!("\t\tRelative jump: 0x{:02X}", offset);
-
-        if cond {
-            self.cycles += if check_page_cross!(self, newpc) { 2 } else { 1 };
-            self.registers.pc = newpc;
-
-            #[cfg(feature = "show_relative_offset")]
-            println!("\t\t\tRelative jump taken. PC: {:04X}", self.registers.pc);
-        }
-    }
-
-    /// Check the opcode and return the addressing mode.
+    /// Check the opcode and set the addressing mode. This is a stateful operation.
     #[allow(clippy::bad_bit_mask)]
     #[bitmatch]
-    fn mode(&mut self, op: u8) -> Mode {
-        #[bitmatch]
-        match op {
+    fn set_mode(&mut self) -> Mode {
+        self.addr_mode = #[bitmatch]
+        match self.active_byte {
             "aaabbbcc" => match c {
                 0x00 => match b {
                     0x00 => match a {
@@ -360,25 +241,125 @@ impl InstructionController for VirtualMachine {
                 },
                 _ => panic!("Invalid mode: {}", c),
             },
-        }
+        };
+
+        self.addr_mode
     }
 
+    /// Fetch the address to be used for the current instruction.
+    ///
+    /// It sets self.mode_addr, but this may be deprecated.
+    fn fetch_addr(&mut self) -> u16 {
+        self.mode_addr = match self.addr_mode {
+            Mode::Absolute => {
+                // Todo can we move increments to get heap? We have to fix Relative to be
+                // parallel. I don't think so, because indirect fetching.
+                let ll = self.inc_pc_and_get_byte() as u16;
+                let hh = self.inc_pc_and_get_byte() as u16;
+
+                (hh << 2) | ll
+            }
+            // OPC $LLHH,X
+            Mode::AbsoluteX => {
+                let ll = self.inc_pc_and_get_byte() as u16;
+                let hh = self.inc_pc_and_get_byte() as u16;
+
+                (hh << 2) | (ll + self.registers.x as u16)
+            }
+            // OPC $LLHH,Y
+            Mode::AbsoluteY => {
+                let ll = self.inc_pc_and_get_byte() as u16;
+                let hh = self.inc_pc_and_get_byte() as u16;
+
+                (hh << 2) | (ll + self.registers.y as u16)
+            }
+            // Apply handles the accumulator.
+            Mode::Accumulator => 0,
+            // OPC $LLHH
+            // operand is address $HHLL
+            // OPC #$BB
+            Mode::Immediate => {
+                /*
+                TODO: Can we factor pc addition into get_heap?
+                For some reason this is off by one, control.rs:93
+                seems to be showing that we're fetching the previous byte.
+                */
+                // I believe we can also increment the cycles:
+                self.inc_pc_and_get_addr()
+            }
+            // OPC
+            // Apply handles implied.
+            Mode::Implied => 0,
+            // OPC ($LLHH)
+            Mode::Indirect => {
+                let ll = self.inc_pc_and_get_byte() as u16;
+                let hh = self.inc_pc_and_get_byte() as u16;
+
+                (hh << 2) | ll
+            }
+            /*
+            OPC ($LL, X)
+            operand is zeropage address; effective address is word in (LL + X, LL + X + 1),
+            inc. without carry: C.w(0LL + X)
+            */
+            Mode::IndirectX => {
+                let ll = self.inc_pc_and_get_byte() as u16;
+                let ell = self.get_heap(ll + self.registers.x as u16) as u16;
+                let ehh = self.get_heap(ll + self.registers.x as u16 + 1) as u16;
+
+                (ehh << 2) | ell
+            }
+            /*
+            OPC ($LL), Y
+            operand is zeropage address; effective address is word in (LL, LL + 1)
+            incremented by Y with carry: C.w(0LL) + Y
+            TODO: check if this is correct.
+            */
+            Mode::IndirectY => {
+                let ll = self.inc_pc_and_get_byte() as u16;
+                let ell = self.get_heap(ll) as u16;
+                let ehh = self.get_heap(ll) as u16;
+
+                (ehh << 2) | (ell + self.registers.y as u16)
+            }
+            // OPC $BB
+            Mode::Relative => {
+                // TODO: Check if i should be setting this
+                self.inc_pc_and_get_byte() as u16
+            }
+            // OPC $LL
+            Mode::ZeroPage => self.inc_pc_and_get_byte() as u16,
+            // OPC $LL, X
+            Mode::ZeroPageX => {
+                let ll = self.inc_pc_and_get_byte() as u16;
+                ll + self.registers.x as u16
+            }
+            // OPC $LL, Y
+            Mode::ZeroPageY => {
+                let ll = self.inc_pc_and_get_byte() as u16;
+                ll + self.registers.y as u16
+            }
+        };
+
+        self.mode_addr
+    }
+
+    fn fetch_byte(&mut self) -> u8 {
+        let addr = self.fetch_addr();
+        self.get_heap(addr)
+    }
     /// Execute an arbitrary op. It returns the vm's current `cycle` count.
     #[bitmatch]
     fn step(&mut self) -> u64 {
         // Get current op TODO: Implement internal virtual bounds.
-        let op = self.get_pc_byte();
-        // Set internal mode.
-        let m = self.mode(op);
+        self.active_byte = self.get_pc_byte();
+        self.set_mode();
 
         #[cfg(feature = "show_vm_step")]
         println!(
             "step: 0x{:04X}: OP=0x{:02X}, {:?}",
-            self.registers.pc, op, m
+            self.registers.pc, self.active_byte, self.addr_mode
         );
-
-        // Update internal state
-        self.addr_mode = m;
 
         // Increment PC for the OP fetched.
         // Logic says this should be done before, but maybe after?
@@ -403,7 +384,7 @@ impl InstructionController for VirtualMachine {
 
         #[allow(unused_variables)]
         #[bitmatch]
-        match op {
+        match self.active_byte {
             "00000000" => {
                 #[cfg(feature = "show_vm_instr_tick_match")]
                 println!("BRK");
@@ -522,7 +503,7 @@ impl InstructionController for VirtualMachine {
                 // This is the only arm that triggers when op maps to Mode::Relative.
                 // Therefore, lets make the assumption that we can do the relative offset calculation here instead of in the fetch function.
                 // We are setting the PC
-                let offset = self.fetch();
+                let offset = self.fetch_addr() as i8;
                 println!("\t    Relative offset: 0x{:02X}", offset);
 
                 if b == 0b100 {
@@ -731,7 +712,6 @@ impl InstructionController for VirtualMachine {
         println!("{:?}", self);
 
         // This should be counting the consumed ops.
-        // Incrementing in vm.get_heap for now.
         // self.cycles += 1;
         self.registers.pc = self.registers.pc.wrapping_add(1);
 

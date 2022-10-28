@@ -43,22 +43,27 @@ pub struct VirtualMachine {
     /// Machine registers struct.
     #[derivative(Default(value = "Registers::new()"))]
     pub registers: Registers,
+
     /// The machine memory in a linear layout.
+    ///
     /// We set the size to 64k+1 to allow easy indexing.
     #[derivative(Default(value = "BytesMut::zeroed(0x10000)"))]
     pub flatmap: BytesMut,
 
     /// Machine zero page bounds.
+    ///
     /// This is a tuple of (start, end) addresses.
     #[derivative(Default(value = "(0x0000, 0x0100)"))]
     pub zero_bounds: (usize, usize),
 
     /// Machine stack page bounds.
+    ///
     /// The stack grows downwards from 0x01FF to 0x0100.
     #[derivative(Default(value = "(0x0100, 0x01FF)"))]
     pub stack_bounds: (usize, usize),
 
     /// Machine heap(dynamic memory) bounds.
+    ///
     /// This is the only memory that can be dynamically allocated.
     /// Accessing memory outside of these bounds is undefined behavior.
     // TODO: FIX: #[derivative(Default(value = "(0x0200, 0xFFFF)"))]
@@ -78,9 +83,14 @@ pub struct VirtualMachine {
     #[derivative(Default(value = "(0xFFFE, 0xFFFF)"))]
     pub irq_bounds: (usize, usize),
 
+    // InstructionController state. TODO: Maybe factor into it's own struct.
     /// Current mode state, this is generally set internally by [step](InstructionController::step).
     #[derivative(Default(value = "Mode::Absolute"))]
     pub addr_mode: Mode,
+    #[derivative(Default(value = "0"))]
+    pub mode_addr: u16,
+    #[derivative(Default(value = "0"))]
+    pub active_byte: u8,
 
     /// The current cycle count of the vm. This is incremented by [step](InstructionController::step).
     #[derivative(Default(value = "0"))]

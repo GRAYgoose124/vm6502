@@ -16,14 +16,17 @@ pub trait HeapInterface {
     fn get_heap(&mut self, virt_addr: u16) -> u8;
     /// Sets the value at the heap address given.
     fn set_heap(&mut self, virt_addr: u16, byte: u8);
-    /// Get the byte on the heap at PC + offset.
+    /// Get the byte on the heap at PC.
     fn get_pc_byte(&mut self) -> u8;
+    /// Increment the PC and return the byte at the new PC.
     fn inc_pc_and_get_byte(&mut self) -> u8;
+    /// Increment the PC and return the byte at the new PC.
+    fn inc_pc_and_get_addr(&mut self) -> u16;
 
     // Mid level interface
-    // return the bytes, 0xHH__ from the PC. More of a convenience/debug function.
+    /// return the bytes, 0xHH__ from the PC. More of a convenience/debug function.
     fn get_page_offset(&self) -> u8;
-    // Add an the virt_addr to the high byte of the PC - it's a "magic" jump, bypassing modes.
+    /// Add an the virt_addr to the high byte of the PC - it's a "magic" jump, bypassing modes.
     fn set_page_offset(&mut self, virt_addr: u8);
 
     fn bounds_check(&self, virt_addr: usize) -> bool;
@@ -47,6 +50,11 @@ impl HeapInterface for VirtualMachine {
     fn inc_pc_and_get_byte(&mut self) -> u8 {
         self.registers.pc = self.registers.pc.wrapping_add(1);
         self.get_heap(self.registers.pc)
+    }
+
+    fn inc_pc_and_get_addr(&mut self) -> u16 {
+        self.registers.pc = self.registers.pc.wrapping_add(1);
+        self.registers.pc
     }
 
     fn set_heap(&mut self, virt_addr: u16, byte: u8) {

@@ -60,7 +60,7 @@ fn asl_cover() {
 fn eor() {
     let mut vm = VirtualMachine::new();
     vm.set_program(0x0000, "49FF4900");
-    
+
     vm.registers.ac = 0xFF;
     vm.step();
     assert_eq!(vm.registers.ac, 0x00);

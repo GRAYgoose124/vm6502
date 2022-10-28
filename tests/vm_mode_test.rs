@@ -7,7 +7,8 @@ fn test_mode() {
     let mut vm = VirtualMachine::new();
 
     for (i, op) in VALID_OPCODES.iter().enumerate() {
-        let mode = vm.mode(*op);
+        vm.active_byte = *op;
+        let mode = vm.set_mode();
 
         assert_eq!(mode, OP_MODES[i]);
     }
