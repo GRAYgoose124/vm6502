@@ -37,7 +37,7 @@ fn test_set_interrupt_vectors() {
 fn test_load_program() {
     let mut vm = VirtualMachine::new();
     // Get the program from the file in binaries/square_ints.a65
-    vm.load_program(0x0000, "binaries/square_ints.a65");
+    vm.load_program(0x0000, "asm65/square_ints.a65");
 
     assert_eq!(vm.flatmap[vm.heap_bounds.0], 0xA0);
     assert_eq!(vm.flatmap[vm.heap_bounds.0 + 1], 0x00);

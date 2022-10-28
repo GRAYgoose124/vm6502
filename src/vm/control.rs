@@ -57,7 +57,6 @@ pub trait InstructionController {
     // TODO: Mode could be a macro, or other macros could be integrated. Consider this API decision more closely.
     fn mode(&mut self, op: u8) -> Mode;
     fn fetch(&mut self) -> u8;
-    fn fetch_byte(&mut self) -> u8;
     fn apply(&mut self, address: u16, operation: fn(u8) -> u8) -> u8;
 
     //
@@ -181,18 +180,7 @@ impl InstructionController for VirtualMachine {
 
                 let offset = (hh << 2) | (ll + self.registers.y as usize);
                 self.get_heap(offset as u16)
-            }
-            _ => self.fetch_byte(),
-        }
-    }
-
-    fn fetch_byte(&mut self) -> u8 {
-        #[cfg(feature = "show_mode")]
-        println!("\n\tfetch mode: {:?}", self.addr_mode);
-
-        // TODO: Implement all PC incrementing.
-        let fetched: u8 = match self.addr_mode {
-            // OPC A
+            },
             Mode::Accumulator => self.registers.ac,
             // OPC $LLHH
             // operand is address $HHLL
@@ -264,19 +252,7 @@ impl InstructionController for VirtualMachine {
                 let ll = self.inc_pc_and_get_byte();
                 self.get_heap((ll + self.registers.y).into())
             }
-            _ => panic!(
-                "No way to be here in this address mode! {:?}",
-                self.addr_mode
-            ),
-        };
-
-        #[cfg(feature = "show_fetched")]
-        println!(
-            "\n\tfetched value: {:02X} by mode: {:?}",
-            fetched, self.addr_mode
-        );
-
-        fetched
+        }
     }
 
     // This is setting the offset for branch instructions inside of step(). (TODO: refactor step into get_op, step, then add run.)
