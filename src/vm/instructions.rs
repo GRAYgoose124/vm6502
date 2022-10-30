@@ -327,30 +327,36 @@ impl Instructions for VirtualMachine {
     }
 
     fn cmp(&mut self) {
-        let value = self.fetch_addr();
-        let result = self.registers.ac as u16 - value;
+        let addr = self.fetch_addr();
+        let value = self.get_heap(addr);
 
-        self.set_status(Status::Carry, result < 0x100);
-        self.set_status(Status::Zero, result == 0);
-        self.set_status(Status::Negative, result & 0x80 != 0);
+        let result = self.registers.ac.checked_sub(value);
+
+        self.set_status(Status::Carry, result.is_some());
+        self.set_status(Status::Zero, result.unwrap_or(0) == 0);
+        self.set_status(Status::Negative, result.unwrap_or(0) & 0x80 != 0);
     }
 
     fn cpx(&mut self) {
-        let value = self.fetch_addr();
-        let result = self.registers.x as u16 - value;
+        let addr = self.fetch_addr();
+        let value = self.get_heap(addr);
 
-        self.set_status(Status::Carry, result < 0x100);
-        self.set_status(Status::Zero, result == 0);
-        self.set_status(Status::Negative, result & 0x80 != 0);
+        let result = self.registers.x.checked_sub(value);
+
+        self.set_status(Status::Carry, result.is_some());
+        self.set_status(Status::Zero, result.unwrap_or(0) == 0);
+        self.set_status(Status::Negative, result.unwrap_or(0) & 0x80 != 0);
     }
 
     fn cpy(&mut self) {
-        let value = self.fetch_addr();
-        let result = self.registers.y as u16 - value;
+        let addr = self.fetch_addr();
+        let value = self.get_heap(addr);
 
-        self.set_status(Status::Carry, result < 0x100);
-        self.set_status(Status::Zero, result == 0);
-        self.set_status(Status::Negative, result & 0x80 != 0);
+        let result = self.registers.y.checked_sub(value);
+
+        self.set_status(Status::Carry, result.is_some());
+        self.set_status(Status::Zero, result.unwrap_or(0) == 0);
+        self.set_status(Status::Negative, result.unwrap_or(0) & 0x80 != 0);
     }
 
     // TODO: Move to separate mod, general_instructions?

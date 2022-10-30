@@ -9,5 +9,7 @@ fn main() {
 
     // It shouldn't take more than 10ms on any modern machine to run this program.
     // If it does, something is wrong. This is a sane assumption... Right? Right.
-    vm.run(Duration::from_millis(10));
+    vm.run(Duration::from_millis(1000));
+
+    println!("Final: {:?}", vm);
 }
